@@ -7,7 +7,7 @@ import { Chart }            from 'react-chartjs-2'
 // ChartJS.register(ArcElement, Tooltip, Legend);
 import { Line } from 'react-chartjs-2';
 import { Pie } from 'react-chartjs-2';
-import React, {useState} from "react";
+import React, {useState, useEffect, useRef} from "react";
 
 import { Input } from "@/components/ui/input"
 import {
@@ -23,12 +23,12 @@ import {
 
 export default function Home() {
   const initialMaterials = [
-    { name: 'Aluminum', quantityGreen: 0, quantity: 0, emissionsCO2: 1, emissionsCO2Green: 1, price: 100 },
-    { name: 'Concrete', quantityGreen: 0, quantity: 0, emissionsCO2: 1, emissionsCO2Green: 1, price: 100 },
-    { name: 'Plastic', quantityGreen: 0, quantity: 0, emissionsCO2: 1, emissionsCO2Green: 1, price: 100 },
-    { name: 'Glass', quantityGreen: 0, quantity: 0, emissionsCO2: 1, emissionsCO2Green: 1, price: 100 },
-    { name: 'Timber', quantityGreen: 0, quantity: 0, emissionsCO2: 1, emissionsCO2Green: 1, price: 100 },
-    { name: 'Steel', quantityGreen: 0, quantity: 0, emissionsCO2: 1, emissionsCO2Green: 1, price: 100 },
+    { name: 'Aluminum', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 250 },
+    { name: 'Concrete', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 400 },
+    { name: 'Plastic', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 50 },
+    { name: 'Glass', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 120 },
+    { name: 'Timber', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 80 },
+    { name: 'Steel', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 300 },
   ];
 
   const [data, setData] = useState(initialMaterials)
@@ -93,7 +93,7 @@ export default function Home() {
     </div>
 
     <div className="md:flex justify-center md:h-[750px] w-full xl:gap-20 ">
-      <AreaChartTwoAxis history={history}/>
+      <AreaChartTwoAxis data={data}/>
       <PieChartCO2 />
     </div>
 
@@ -276,89 +276,108 @@ const PieChartCO2 = () => {
 
 
 
-function AreaChartTwoAxis(props) {
-  // const [C02Totatl, setC02Totatl] = useState([])
-  // const [dataCost, setDataCost] = useState([])
-  // const [dataCO2, setDataCO2] = useState([])
+function AreaChartTwoAxis({ data }) {
+  const [allChanges, setAllChanges] = useState([]);
 
-  console.log(props.history)
-
-  let tempArr = [...props.history]
-  let dataCost = []
-  let dataCO2 = []
-  tempArr.forEach(data => {
-    let CO2Totatl = 0;
-    let CashTotatl = 0;
-    console.log("Data:", data)
-    data.forEach(ele => {
-      CO2Totatl += ele.emissionsCO2Green + ele.emissionsCO2
-      CashTotatl += ele.price * (ele.quantity + ele.quantityGreen)
-    })
-    dataCost.push(CashTotatl)
-    dataCO2.push(CO2Totatl)
-    // setDataCost([...dataCost, CashTotatl])
-    // setDataCO2([...dataCO2, CO2Totatl])
-  });
-
-
-  const data = {
-    labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
+  const [chartData, setChartData] = useState({
+    labels: [],
     datasets: [
       {
         label: 'Cost',
-        data: dataCost, 
+        data: [],
         borderColor: 'rgb(255, 99, 132)',
         backgroundColor: 'rgba(255, 99, 132, 0.5)',
-        yAxisID: 'y',
-        fill: true,
+        yAxisID: 'y-cost',
       },
       {
         label: 'CO2',
-        data: dataCO2, 
+        data: [],
         borderColor: 'rgb(53, 162, 235)',
         backgroundColor: 'rgba(53, 162, 235, 0.5)',
-        yAxisID: 'y1',
-        fill: true,
+        yAxisID: 'y-co2',
       },
-    ],
-  };
+    ]
+  });
+
+  useEffect(() => {
+    let newDataCost = 0;
+    let newDataCO2 = 0;
+
+
+    data.forEach(material => {
+      newDataCO2 += material.quantity * material.emissionsCO2 + material.quantityGreen * material.emissionsCO2Green;
+      newDataCost += material.quantity * material.price + material.quantityGreen * material.price;
+    });
+
+
+    setAllChanges(prevAllChanges => [...prevAllChanges, { newDataCost, newDataCO2 }]);
+
+  }, [data]); 
+
+  useEffect(() => {
+    setChartData({
+      labels: allChanges.map((_, index) => `V ${index + 1}`),
+      datasets: [
+        {
+          label: 'Cost',
+          data: allChanges.map(change => change.newDataCost),
+          borderColor: 'rgb(255, 99, 132)',
+          backgroundColor: 'rgba(255, 99, 132, 0.5)',
+          yAxisID: 'y-cost',
+          fill: true,
+        },
+        {
+          label: 'CO2',
+          data: allChanges.map(change => change.newDataCO2),
+          borderColor: 'rgb(53, 162, 235)',
+          backgroundColor: 'rgba(53, 162, 235, 0.5)',
+          yAxisID: 'y-co2',
+          fill: true,
+        },
+      ],
+    });
+  }, [allChanges]);
 
   const options = {
     scales: {
-      y: {
+      'y-cost': {
         type: 'linear',
         display: true,
         position: 'left',
+        beginAtZero: true,
       },
-      y1: {
+      'y-co2': {
         type: 'linear',
         display: true,
         position: 'right',
+        beginAtZero: true,
         grid: {
-          drawOnChartArea: false,
+          drawOnChartArea: false, 
         },
       },
     },
     plugins: {
       title: {
         display: true,
-        text: 'Monthly Analysis of Cost and CO2',
+        text: 'Analysis of Cost and CO2 emissions',
         font: {
           size: 20
         },
         padding: {
           top: 20,
-          bottom: 10
+          bottom: 30
         }
       },
       legend: {
         display: true,
         position: 'top',
-      }
-    }
+      },
+    },
+    responsive: true,
+    maintainAspectRatio: false,
   };
 
-  return <div className="w-6/12"><Line data={data} options={options} /></div>;
+  return <div className="w-6/12"><Line data={chartData} options={options} /></div>;
 }
 
 
