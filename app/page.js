@@ -1,24 +1,32 @@
 "use client"
 
-// import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
-import React, {useState, useEffect, useRef} from "react";
+import React, {useState, useEffect, useRef, forwardRef } from "react";
 import { Doughnut } from "react-chartjs-2";
-import { Chart as ChartJS } from 'chart.js/auto'
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, TimeScale } from 'chart.js/auto'
 import { Chart }            from 'react-chartjs-2'
-// ChartJS.register(ArcElement, Tooltip, Legend);
 import { Line } from 'react-chartjs-2';
-import { Pie } from 'react-chartjs-2';
+// import { Pie } from 'react-chartjs-2';
 import { Radar } from 'react-chartjs-2';
-// import { motion } from 'framer-motion';
+import {Dates, Quota} from '@/lib/chartdata.js'
+import jsPDF from 'jspdf';
 
-// import treeImage from './tree.jpg'; 
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  TimeScale
+);
+
 
 
 import { Input } from "@/components/ui/input"
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -51,7 +59,79 @@ export default function Home() {
   const CO2PerTreePerYear = 48; 
   const treesNeeded = 10; 
 
+  const doughnutChartRef = useRef(null);
+
+//   const downloadPDF = () => {
+//     const pdf = new jsPDF('landscape');
+// pdf.text("Hello World!", 10, 10);  // Just to test text addition
+// pdf.save('test.pdf');
+
+//     // if (doughnutChartRef.current) {
+//     //   // Get the canvas
+//     //   const canvas = doughnutChartRef.current.canvas;
   
+//     //   // Set the dimensions for the PDF if needed (example: 280x150)
+//     //   canvas.width = 280;
+//     //   canvas.height = 150;
+  
+//     //   // Temporarily draw a background before exporting to an image
+//     //   const ctx = canvas.getContext('2d');
+//     //   // Save the current state before applying changes
+//     //   ctx.save();
+//     //   // Set a white background or any other non-transparent color
+//     //   ctx.globalCompositeOperation = 'destination-over';
+//     //   ctx.fillStyle = '#fff';  // White background or any color of choice
+//     //   ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+//     //   // Convert canvas to image
+//     //   const base64Image = canvas.toDataURL('image/jpeg', 1.0);
+  
+//     //   // Restore the canvas state if further operations are needed with it
+//     //   ctx.restore();
+  
+//     //   // Generate PDF
+//     //   const pdf = new jsPDF('landscape');
+//     //   pdf.addImage(base64Image, 'JPEG', 10, 10, 280, 150);
+//     //   pdf.save('download.pdf');
+//     // } else {
+//     //   console.error('Chart is not yet rendered.');
+//     // }
+//   };
+
+  const downloadPDF = () => {
+    if (doughnutChartRef.current) {
+      // Here, we need to directly access the canvas as the instance structure might vary based on react-chartjs-2 version
+      const base64Image = doughnutChartRef.current.toBase64Image('image/jpeg', 1);
+
+      const pdf = new jsPDF('landscape');
+      pdf.addImage(base64Image, 'JPEG', 10, 10, 280, 150);
+      pdf.save('download.pdf');
+    } else {
+      console.error('Chart is not yet rendered.');
+    }
+  };
+
+
+
+  // Code for 'Carbon quote Calculator'
+  const calculateCarbonCost = (co2Emissions) => {
+    const lastQuotaValue = parseFloat(Quota[Quota.length - 1]);
+    return co2Emissions * lastQuotaValue;
+  };
+
+  const handleCarbonCalculation = (event) => {
+    event.preventDefault();
+    const co2Emissions = parseFloat(event.target.elements.co2Amount.value);
+    const totalCost = calculateCarbonCost(co2Emissions);
+    const lastQuotaValue = parseFloat(Quota[Quota.length - 1]);
+    const resultsDiv = document.getElementById('calculationResults');
+    resultsDiv.innerHTML = `
+      <p>Total cost based on last CO2 price: ${totalCost.toFixed(2)} euros</p>
+      <p>Used quota: ${lastQuotaValue.toFixed(2)}/kg CO2</p>
+    `;
+    //alert(`Total cost based on last CO2 price: $${totalCost.toFixed(2)}`);
+  };
+
   
 
   function handleInputChange(materialName, field, newValue) {
@@ -111,7 +191,7 @@ export default function Home() {
                 style={{ display: 'none' }}
             />
       
-          <Button variant="secondary">Export PDF <FaFileExport  size={16} className="ml-2"/></Button>
+          <Button variant="secondary" onClick={downloadPDF}>Export PDF <FaFileExport  size={16} className="ml-2"/></Button>
           <Button variant="destructive" onClick={() => {
             setHistory(prevHistory => [...prevHistory, initialMaterials])
             setData(initialMaterials)}}>Reset <MdDelete size={21} className="ml-2"/></Button>
@@ -154,7 +234,7 @@ export default function Home() {
 
     <div className="md:flex justify-center w-full gap-10">
       <AreaChartTwoAxis history={history}/>
-      <PieChartCO2 data={data}/>
+      <PieChartCO2 data={data} ref={doughnutChartRef}/>
     </div>
 
     <TreeAnimation treesNeeded={treesNeeded} />
@@ -165,13 +245,26 @@ export default function Home() {
     </div>
 
 
+
 <div className="w-full flex justify-center items-center gap-20 mt-20">
-  <p>Climate quote graph...</p>
+  <div className="md:flex-1 w-full px-4">
+  <p className='text-center font-bold mb-4'>EU Climate quota euros/tonne</p>
+      <div className='w-full'>
+      <QuotaChart />
+      </div>
+    </div>
   <div className="border w-4/12 rounded-md p-8">
       <h1>Carbon quote Calculator</h1>
-      <Button></Button>
-
-      
+      <form onSubmit={handleCarbonCalculation}>
+            <Input
+              type="number"
+              name="co2Amount"
+              placeholder="Enter total CO2 (kg)"
+              className="input mb-4"
+            />
+            <Button type="submit" className="button">Calculate Cost</Button>
+          </form>    
+          <div id="calculationResults"></div>  
   </div>
 </div>
 
@@ -186,7 +279,7 @@ export default function Home() {
 
 
 
-const PieChartCO2 = ({ data }) => {
+const PieChartCO2 = forwardRef(({ data }, doughnutChartRef) => {
   const labels = data.map(material => material.name);
   const totalCO2Data = data.map(material => material.quantity * material.emissionsCO2 + material.quantityGreen * material.emissionsCO2Green);
   const regularCO2Data = data.map(material => material.quantity * material.emissionsCO2);
@@ -278,6 +371,9 @@ const PieChartCO2 = ({ data }) => {
           }
         }
       },
+      background: {
+        color: 'white', // This sets a background color which helps in PDF export
+      },
       tooltip: {
         callbacks: {
           label: function(context) {
@@ -296,7 +392,16 @@ const PieChartCO2 = ({ data }) => {
     },
     animation: {
       animateScale: true,
-      animateRotate: true
+      animateRotate: true,
+      // onComplete: () => {
+      //   const chartInstance = doughnutChartRef.current.chartInstance;
+      //   const ctx = chartInstance.ctx;
+      //   ctx.save();
+      //   ctx.globalCompositeOperation = 'destination-over';
+      //   ctx.fillStyle = 'white';  // set background color
+      //   ctx.fillRect(0, 0, chartInstance.width, chartInstance.height);
+      //   ctx.restore();
+      // }
     }
   };
   
@@ -360,9 +465,9 @@ const PieChartCO2 = ({ data }) => {
 
   return (<>
   {totalCO2Data.every(element => element === 0) ? <div className="rounded-full bg-slate-100 w-3/12 aspect-square flex justify-center items-center"><p>No Data</p></div> :
-  <div className="w-3/12"><Doughnut data={chartData} options={options} /></div>}
+  <div className="w-3/12"><Doughnut data={chartData} options={options} ref={doughnutChartRef} /></div>}
   </>);
-};
+});
 
 
 
@@ -651,6 +756,111 @@ const RadarChartExample = ({data}) => {
     </div>
   );
 };
+
+
+const QuotaChart = () => {
+  const dates = Dates; 
+  const quota = Quota.map(q => parseFloat(q));
+
+  const data = {
+    labels: dates,
+    datasets: [
+      {
+        label: 'Climate Quota',
+        data: quota,
+        fill: false,
+        borderColor: 'rgb(75, 192, 192)',
+        tension: 0.1,
+        pointRadius: 0, 
+        borderWidth: 2 
+      }
+    ]
+  };
+
+  const options = {
+    scales: {
+      x: {
+        type: 'category', 
+        ticks: {
+          autoSkip: true,
+          maxTicksLimit: 20 // Adjust based on your preference
+        }
+      },
+      y: {
+        beginAtZero: false
+      }
+    },
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top'
+      }
+    }
+  };
+
+  return (
+    <div style={{ height: '300px', width: '100%' }}>
+      <Line data={data} options={options} />
+    </div>
+  );
+};
+
+
+
+/*
+const QuotaChart = () => {
+  const data = {
+    labels: Dates,
+    datasets: [
+      {
+        label: 'Climate Quota',
+        data: Quota.map(q => parseFloat(q)), // Ensure numbers are parsed correctly
+        borderColor: 'rgb(75, 192, 192)',
+        backgroundColor: 'rgba(75, 192, 192, 0.5)',
+      }
+    ]
+  };
+
+  const options = {
+    scales: {
+      x: {
+        type: 'time',
+        time: {
+          unit: 'day',
+          tooltipFormat: 'yyyy-MM-dd'
+        },
+        title: {
+          display: true,
+          text: 'Date'
+        }
+      },
+      y: {
+        beginAtZero: false,
+        title: {
+          display: true,
+          text: 'Quota'
+        }
+      }
+    },
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top'
+      }
+    },
+    responsive: true,
+    maintainAspectRatio: false
+  };
+
+  return (
+    <div style={{ height: '300px', width: '100%' }}>
+      <Line data={data} options={options} />
+    </div>
+  );
+};
+*/
+
 
 
 
