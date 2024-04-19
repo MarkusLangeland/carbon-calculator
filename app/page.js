@@ -9,6 +9,7 @@ import { Line } from 'react-chartjs-2';
 import { Radar } from 'react-chartjs-2';
 import {Dates, Quota} from '@/lib/chartdata.js'
 import jsPDF from 'jspdf';
+import 'jspdf-autotable';  
 
 ChartJS.register(
   CategoryScale,
@@ -44,12 +45,12 @@ import { FaFileExport } from "react-icons/fa6";
 
 export default function Home() {
   const initialMaterials = [
-    { name: 'Aluminum', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 250, greenPrice: 250 },
-    { name: 'Concrete', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 400, greenPrice: 400 },
-    { name: 'Plastic', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 50, greenPrice: 50 },
-    { name: 'Glass', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 120, greenPrice: 120 },
-    { name: 'Timber', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 80, greenPrice: 80 },
-    { name: 'Steel', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 300, greenPrice: 300 },
+    { name: 'Aluminum', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 250, greenPrice: 500 },
+    { name: 'Concrete', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 400, greenPrice: 800 },
+    { name: 'Plastic', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 50, greenPrice: 100 },
+    { name: 'Glass', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 120, greenPrice: 240 },
+    { name: 'Timber', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 80, greenPrice: 160 },
+    { name: 'Steel', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 300, greenPrice: 600 },
   ];
 
   const [data, setData] = useState(initialMaterials)
@@ -57,9 +58,12 @@ export default function Home() {
 
   const totalCO2 = 10000; 
   const CO2PerTreePerYear = 48; 
-  const treesNeeded = 10; 
+  const treesNeeded = 100; 
 
   const doughnutChartRef = useRef(null);
+  const analysisChartRef = useRef(null);
+  const polarChartRef = useRef(null);
+  const quotaChartRef = useRef(null);
 
 //   const downloadPDF = () => {
 //     const pdf = new jsPDF('landscape');
@@ -98,18 +102,199 @@ export default function Home() {
 //     // }
 //   };
 
+const [windowWidth, setWindowWidth] = useState(undefined);
+
+useEffect(() => {
+  // Ensure window is defined (i.e., running in the browser)
+  if (typeof window !== 'undefined') {
+    // Set initial width
+    setWindowWidth(window.innerWidth);
+
+    // Handle resize events
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    // Clean up the event listener when the component unmounts
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }
+}, []);
+
+const prepareTableData = (data) => {
+  return data.map(material => {
+    const totalMoneySpent = (material.quantity*material.price) + (material.quantityGreen*material.greenPrice)
+    return [
+      material.name,
+      material.emissionsCO2.toFixed(2),
+      material.emissionsCO2Green.toFixed(2),
+      material.price.toFixed(2),
+      material.greenPrice.toFixed(2),
+      totalMoneySpent.toFixed(2),
+    ];
+  });
+}
+
+const addTable = (data, pdf, startY) => {
+  const headers = [["Material", "CO2 (kg)", "Green CO2 (kg)", "Price (kr)", "Green Price (kr)", "Total Cost (kr)"]];
+
+  const body = prepareTableData(data);
+
+  pdf.autoTable({
+    head: headers,
+    body: body,
+    startY: startY,
+    styles: { font: "Times-Roman", fontSize: 10 },
+    theme: 'grid',
+    headStyles: { fillColor: [221, 222, 226], textColor: [78, 53, 73], fontStyle: 'bold' },
+    columnStyles: { 0: { cellWidth: 35 }, 1: { cellWidth: 25 }, 2: { cellWidth: 25 }, 3: { cellWidth: 25 }, 4: { cellWidth: 25 }, 5: { cellWidth: 30 } },
+    margin: {left: 20},
+    didDrawPage: function (data) {
+      startY = data.cursor.y; // Update startY for the next possible content
+    }
+  });
+
+  // Add extra space below the table
+  const spaceBelowTable = 20; // Adjust this value as needed
+  startY += spaceBelowTable;
+
+  return startY; // Return the updated startY for further use
+}
+
+const prepareTableDatas = (data) => {
+  return data.map(material => {
+    const totalRegularCost = material.quantity * material.price;
+    const totalGreenCost = material.quantityGreen * material.greenPrice;
+    const totalCost = totalRegularCost + totalGreenCost;
+    const regularPercentage = totalRegularCost / totalCost * 100;
+    const greenPercentage = totalGreenCost / totalCost * 100;
+    const hypotheticalGreenCost = material.quantity * material.greenPrice; // Find total cost if regular materials are switched to green
+    const priceToGoAllGreen = hypotheticalGreenCost - totalRegularCost; // Subtract total cost if the materials were regular to get gap
+
+    return [
+      material.name,
+      material.quantity.toFixed(2),
+      material.quantityGreen.toFixed(2),
+      material.price.toFixed(2),
+      material.greenPrice.toFixed(2),
+      regularPercentage.toFixed(2) + '%',
+      greenPercentage.toFixed(2) + '%',
+      priceToGoAllGreen.toFixed(2)
+    ];
+  });
+}
+
+const addNewTable = (data, pdf, startY) => {
+  const headers = [["Material", "Qty Regular", "Qty Green", "Price (kr)", "Green Price (kr)", "Regular %", "Green %", "Price to Go Green (kr)"]];
+
+  const body = prepareTableDatas(data);
+
+  pdf.autoTable({
+    head: headers,
+    body: body,
+    startY: startY,
+    styles: { font: "Times-Roman", fontSize: 10 },
+    theme: 'grid',
+    headStyles: { fillColor: [221, 222, 226], textColor: [78, 53, 73], fontStyle: 'bold' },
+    columnStyles: {
+      0: { cellWidth: 30 },
+      1: { cellWidth: 25 },
+      2: { cellWidth: 25 },
+      3: { cellWidth: 20 },
+      4: { cellWidth: 20 },
+      5: { cellWidth: 20 },
+      6: { cellWidth: 20 },
+      7: { cellWidth: 25 }
+    },
+    margin: {left: 13, right: 20},
+    didDrawPage: function (data) {
+      startY = data.cursor.y;
+    }
+  });
+
+  // Adjust startY for any subsequent content
+  startY += 20;
+  return startY;
+}
+
+
+
+const downloadPDF = () => {
+  const pdf = new jsPDF('portrait');
+
+  let yPosition = 10;
+
+  const addChartToPDF = (chartRef, width, height, title) => {
+    if (chartRef.current) {
+      const canvas = chartRef.current.canvas;
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
+
+      tempCtx.fillStyle = '#FFFFFF';
+      tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+      tempCtx.drawImage(canvas, 0, 0);
+
+      const base64Image = tempCanvas.toDataURL('image/jpeg', 1.0);
+
+      pdf.setFont('Times-Roman', 'bold');
+      pdf.setFontSize(14);
+
+      const titleWidth = pdf.getStringUnitWidth(title) * pdf.internal.getFontSize() / pdf.internal.scaleFactor;
+      const titleX = (pdf.internal.pageSize.getWidth() - titleWidth) / 2;
+
+      const chartX = (pdf.internal.pageSize.getWidth() - width) / 2;
+
+      const titleHeight = 20; 
+      if (yPosition + titleHeight + height > pdf.internal.pageSize.getHeight()) {
+        pdf.addPage();
+        yPosition = 10; 
+      }
+
+
+      pdf.text(title, titleX, yPosition);
+      yPosition += titleHeight; 
+
+      pdf.addImage(base64Image, 'JPEG', chartX, yPosition, width, height);
+
+      yPosition += height + 10; 
+    } else {
+      console.error('Chart is not yet rendered.');
+    }
+  };
+
+  //yPosition = addTable(data, pdf, yPosition + 10);
+  yPosition = addNewTable(data, pdf, yPosition + 10); 
+
+  addChartToPDF(doughnutChartRef, 100, 100, 'Pie Chart');
+  addChartToPDF(analysisChartRef, 180, 100, 'Cost and CO2 Analysis Chart');
+  addChartToPDF(quotaChartRef, 180, 90, 'Quota Chart');
+  addChartToPDF(polarChartRef, 120, 120, 'Polar Chart');
+
+
+  pdf.save('combined-report.pdf');
+};
+
+
+/*
   const downloadPDF = () => {
     if (doughnutChartRef.current) {
       // Here, we need to directly access the canvas as the instance structure might vary based on react-chartjs-2 version
       const base64Image = doughnutChartRef.current.toBase64Image('image/jpeg', 1);
 
       const pdf = new jsPDF('landscape');
-      pdf.addImage(base64Image, 'JPEG', 10, 10, 280, 150);
+      pdf.addImage(base64Image, 'JPEG', 10, 10, 100, 100);
       pdf.save('download.pdf');
     } else {
       console.error('Chart is not yet rendered.');
     }
   };
+  */
 
 
 
@@ -133,7 +318,8 @@ export default function Home() {
   };
 
   
-
+  const fileInputRef = useRef(null);
+  
   function handleInputChange(materialName, field, newValue) {
     if (!newValue || newValue.match(/^\d*\.?\d*$/)) {
       setData(currentData =>
@@ -148,24 +334,62 @@ export default function Home() {
   }
 
   
-  const handleFileChange = (event) => {
+  // const handleFileChange = (event) => {
+  //   const file = event.target.files[0];
+  //   if (file) {
+  //     Papa.parse(file, {
+  //       complete: (results) => {
+  //         setData(results.data);
+  //       },
+  //       header: true,
+  //       skipEmptyLines: true
+  //     });
+  //   }
+  // };
+    
+  const handleButtonClick = () => {
+    fileInputRef.current.click();
+};
+
+const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (file) {
-      Papa.parse(file, {
-        complete: (results) => {
-          setData(results.data);
-        },
-        header: true,
-        skipEmptyLines: true
-      });
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const text = e.target.result;
+            parseCsv(text);
+        };
+        reader.readAsText(file);
     }
-  };
-    
-  const fileInputRef = useRef(null);
+};
 
-  const handleButtonClick = () => {
-      fileInputRef.current.click();
-  };
+
+const parseCsv = (csvData) => {
+  const lines = csvData.split('\n').map(line => line.trim()).filter(line => line);
+  const result = [];
+  
+  // Assuming the first line contains headers
+  const headers = lines[0].split('\t').map(header => header.trim());
+
+  // Start from the second line to skip headers
+  for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(';');
+      const entry = {
+          name: values[0], // Assuming the first column is the material name
+          quantity: parseFloat(values[1]),
+          quantityGreen: parseFloat(values[2]),
+          emissionsCO2: parseFloat(values[3]),
+          emissionsCO2Green: parseFloat(values[4]),
+          price: parseFloat(values[5]),
+          greenPrice: parseFloat(values[6])
+      };
+      result.push(entry);
+  }
+  
+  // Now set the state with this new data
+  console.log(result)
+  setData(result);
+};
 
   function updateHistory() {
     if(JSON.stringify(data) !== JSON.stringify(history[history.length - 1])) {
@@ -188,6 +412,7 @@ export default function Home() {
                 id="file-upload"
                 type="file"
                 onChange={handleFileChange}
+                accept=".csv"
                 style={{ display: 'none' }}
             />
       
@@ -232,28 +457,21 @@ export default function Home() {
       </div>
     </div>
 
-    <div className="md:flex justify-center w-full gap-10">
-      <AreaChartTwoAxis history={history}/>
+    <div className="flex flex-col md:flex-row justify-center items-center w-full gap-10 mt-16">
+      <AreaChartTwoAxis history={history} ref={analysisChartRef}/>
       <PieChartCO2 data={data} ref={doughnutChartRef}/>
     </div>
 
-    <TreeAnimation treesNeeded={treesNeeded} />
+    <TreeAnimation treesNeeded={treesNeeded} windowWidth={windowWidth} />
 
+    <h2 className='text-center text-2xl font-bold mt-16'>EU Carbon credits</h2>
 
-    <div className="flex justify-center">
-      <RadarChartExample data={data}/>
+<div className="flex flex-col md:flex-row justify-center items-center w-full gap-10 mt-4">
+    <div className="flex md:w-6/12 w-10/12  flex-col justify-center items-center">
+      <QuotaChart ref={quotaChartRef}/>
     </div>
 
-
-
-<div className="w-full flex justify-center items-center gap-20 mt-20">
-  <div className="md:flex-1 w-full px-4">
-  <p className='text-center font-bold mb-4'>EU Climate quota euros/tonne</p>
-      <div className='w-full'>
-      <QuotaChart />
-      </div>
-    </div>
-  <div className="border w-4/12 rounded-md p-8">
+  <div className="border md:w-4/12 w-10/12 rounded-md p-8">
       <h1>Carbon quote Calculator</h1>
       <form onSubmit={handleCarbonCalculation}>
             <Input
@@ -268,6 +486,9 @@ export default function Home() {
   </div>
 </div>
 
+<div className="flex justify-center mt-12 mb-12">
+      <RadarChartExample data={data} ref={polarChartRef}/>
+</div>
 
     </main>
   );
@@ -340,222 +561,78 @@ const PieChartCO2 = forwardRef(({ data }, doughnutChartRef) => {
     ]
   };
 
-  const options = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top',
-        labels: {
-          generateLabels: function(chart) {
-            const data = chart.data;
-            return data.labels
-              .map((label, i) => {
-                const meta = chart.getDatasetMeta(0); 
-                const totalEmissionsValue = data.datasets[0].data[i]; 
-  
+const options = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    title: {
+      display: true,
+      text: 'Materials overview'
+    },
+    legend: {
+      position: 'top',
+      labels: {
+        generateLabels: function(chart) {
+          const data = chart.data;
+          return data.labels
+            .map((label, i) => {
+              const meta = chart.getDatasetMeta(0);
+              const totalEmissionsValue = data.datasets[0].data[i];
 
-                if (totalEmissionsValue > 0) {
-                  const style = meta.controller.getStyle(i);
-                  return {
-                    text: label, 
-                    fillStyle: style.backgroundColor,
-                    strokeStyle: style.borderColor,
-                    lineWidth: style.borderWidth,
-                    hidden: !chart.getDataVisibility(i),
-                    index: i
-                  };
-                }
-                return null; 
-              })
-              .filter(item => item !== null); 
-          }
-        }
-      },
-      background: {
-        color: 'white', // This sets a background color which helps in PDF export
-      },
-      tooltip: {
-        callbacks: {
-          label: function(context) {
-            let label = context.label || '';
-  
-            if (label) {
-              label += ': ';
-            }
-            if (context.parsed !== null) {
-              label += context.parsed + ' kg CO2';
-            }
-            return label;
-          }
+              if (totalEmissionsValue > 0) {
+                const style = meta.controller.getStyle(i);
+                return {
+                  text: label,
+                  fillStyle: style.backgroundColor,
+                  strokeStyle: style.borderColor,
+                  lineWidth: style.borderWidth,
+                  hidden: !chart.getDataVisibility(i),
+                  index: i
+                };
+              }
+              return null;
+            })
+            .filter(item => item !== null);
         }
       }
     },
-    animation: {
-      animateScale: true,
-      animateRotate: true,
-      // onComplete: () => {
-      //   const chartInstance = doughnutChartRef.current.chartInstance;
-      //   const ctx = chartInstance.ctx;
-      //   ctx.save();
-      //   ctx.globalCompositeOperation = 'destination-over';
-      //   ctx.fillStyle = 'white';  // set background color
-      //   ctx.fillRect(0, 0, chartInstance.width, chartInstance.height);
-      //   ctx.restore();
-      // }
+    background: {
+      color: 'white', // This sets a background color which helps in PDF export
+    },
+    tooltip: {
+      callbacks: {
+        label: function(context) {
+          let label = context.label || '';
+
+          if (label) {
+            label += ': ';
+          }
+          if (context.parsed !== null) {
+            label += context.parsed + ' kg CO2';
+          }
+          return label;
+        }
+      }
     }
-  };
+  },
+  animation: {
+    animateScale: true,
+    animateRotate: true,
+  }
+};
+
   
-
-  // const options = {
-  //   responsive: true,
-  //   plugins: {
-  //     legend: {
-  //       position: 'top',
-  //       labels: {
-  //         generateLabels: function(chart) {
-  //           const data = chart.data;
-  //           const innerDataIndexStart = data.labels.findIndex(label => label.includes('(Regular)'));
-  //           return chart.data.labels.slice(0, innerDataIndexStart).map((label, i) => {
-  //             const meta = chart.getDatasetMeta(0);
-  //             const style = meta.controller.getStyle(i);
-              
-  //             return {
-  //               text: label, 
-  //               fillStyle: style.backgroundColor,
-  //               strokeStyle: style.borderColor,
-  //               lineWidth: style.borderWidth,
-  //               hidden: !chart.getDataVisibility(i),
-  //               index: i
-  //             };
-  //           });
-  //         }
-  //       },
-  //       onClick: (e, legendItem, legend) => {
-  //         //needed?
-  //       }
-  //     }
-  //   },
-  //   animation: {
-  //     animateScale: true,
-  //     animateRotate: true
-  //   }
-  // };
-  
-
-  // const options = {
-  //   responsive: true,
-  //   plugins: {
-  //     legend: {
-  //       position: 'top',
-  //       onClick: (e, legendItem, legend) => {
-  //         const index = legendItem.datasetIndex;
-  //         const chart = legend.chart;
-  //         if (index === 1) {  
-  //           chart.getDatasetMeta(index).hidden = !chart.getDatasetMeta(index).hidden;
-  //           chart.update();
-  //         }
-  //       }
-  //     }
-  //   },
-  //   animation: {
-  //     animateScale: true,
-  //     animateRotate: true
-  //   }
-  // };
-
   return (<>
-  {totalCO2Data.every(element => element === 0) ? <div className="rounded-full bg-slate-100 w-3/12 aspect-square flex justify-center items-center"><p>No Data</p></div> :
-  <div className="w-3/12"><Doughnut data={chartData} options={options} ref={doughnutChartRef} /></div>}
+  {totalCO2Data.every(element => element === 0) ? <div className="rounded-full bg-slate-100 md:w-3/12 w-7/12 aspect-square flex justify-center items-center"><p>No Data</p></div> :
+      <div className="aspect-square md:w-3/12 w-7/12">
+        <Doughnut data={chartData} options={options} ref={doughnutChartRef} />
+    </div>}
   </>);
 });
 
 
-
-
-// const PieChartCO2 = ({ data }) => {
-//   const originalData = [];
-//   const labels = []
-
-//   data.forEach(material => {
-//     originalData.push(material.quantity*material.emissionsCO2 + material.quantityGreen*material.emissionsCO2Green)
-//     labels.push(material.name)
-//   })
-
-//   const outerDataMultiplier = [0.4, 0.6]; 
-
-//   const innerData = originalData;
-
-//   const outerData = originalData.flatMap((d, index) => 
-//      outerDataMultiplier.map(m => d * m) // Adjust visibility based on state
-//   );
-
-//   const dataPie = {
-//     labels,
-//     datasets: [
-//       {
-//         label: 'CO2 Data Inner',
-//         data: innerData,
-//         backgroundColor: [
-//           'rgba(255, 99, 132, 0.2)',
-//           'rgba(54, 162, 235, 0.2)',
-//           'rgba(255, 206, 86, 0.2)'
-//         ],
-//         borderColor: [
-//           'rgba(255, 99, 132, 1)',
-//           'rgba(54, 162, 235, 1)',
-//           'rgba(255, 206, 86, 1)'
-//         ],
-//         borderWidth: 1,
-//         weight: 0.5
-//       },
-//       {
-//         label: 'CO2 Data Outer',
-//         data: outerData,
-//         backgroundColor: [
-//           'rgba(255, 99, 132, 0.5)',
-//           'rgba(255, 99, 132, 0.7)',
-//           'rgba(54, 162, 235, 0.5)',
-//           'rgba(54, 162, 235, 0.7)',
-//           'rgba(255, 206, 86, 0.5)',
-//           'rgba(255, 206, 86, 0.7)'
-//         ],
-//         borderColor: [
-//           'rgba(255, 99, 132, 1)',
-//           'rgba(255, 99, 132, 1)',
-//           'rgba(54, 162, 235, 1)',
-//           'rgba(54, 162, 235, 1)',
-//           'rgba(255, 206, 86, 1)',
-//           'rgba(255, 206, 86, 1)'
-//         ],
-//         borderWidth: 1,
-//         weight: 0.5
-//       }
-//     ]
-//   };
-
-//   const options = {
-//     plugins: {
-//       legend: {
-//         onClick: (e, legendItem, legend) => {
-//           // Here you would typically toggle the visibility of the dataset
-//           const index = legendItem.datasetIndex;
-//           const chart = legend.chart;
-
-//           // If clicking on outerData's legend, toggle its visibility
-//           if (index === 1) { // Assuming outerData is always the second dataset
-//             chart.getDatasetMeta(index).hidden = !chart.getDatasetMeta(index).hidden;
-//             chart.update();
-//           }
-//         }
-//       }
-//     }
-//   };
-
-//   return <div className="w-3/12"><Doughnut data={dataPie} options={options} /></div>;
-// };
-
-
-function AreaChartTwoAxis({ history }) {
+const AreaChartTwoAxis = forwardRef(({ history }, analysisChartRef) => {
+  // console.log(history)
   let tempArr = [...history]
   let dataCost = []
   let dataCO2 = []
@@ -596,6 +673,8 @@ function AreaChartTwoAxis({ history }) {
   };
 
   const options = {
+    responsive: true,
+    maintainAspectRatio: false,
     scales: {
       y: {
         type: 'linear',
@@ -614,14 +693,7 @@ function AreaChartTwoAxis({ history }) {
     plugins: {
       title: {
         display: true,
-        text: 'Monthly Analysis of Cost and CO2',
-        font: {
-          size: 20
-        },
-        padding: {
-          top: 20,
-          bottom: 10
-        }
+        text: 'Design history',
       },
       legend: {
         display: true,
@@ -631,8 +703,18 @@ function AreaChartTwoAxis({ history }) {
   };
 
 
-  return <div className="w-6/12"><Line data={data} options={options} /></div>;
+  return (
+  <>
+  {history.length === 1 ? 
+  // <div className="aspect-[2/1] md:w-6/12 w-10/12 bg-slate-100 text-center rounded-r-xl">No history data</div>:
+  <div class="aspect-[2/1] md:w-6/12 w-10/12 bg-slate-100 text-center rounded-r-xl flex items-center justify-center">No history data</div>:
+
+  <div className="aspect-[2/1] md:w-6/12 w-10/12"><Line data={data} options={options} ref={analysisChartRef}/></div>
+  }
+  
+  </>)
 }
+)
 
 
 // const RadarChartExample = ({data}) => {
@@ -682,7 +764,7 @@ function AreaChartTwoAxis({ history }) {
 //   );
 // };
 
-const RadarChartExample = ({data}) => {
+const RadarChartExample = forwardRef(({data}, polarChartRef) => {
 
   const calculateRatios = (data) => {
     return data.map(material => {
@@ -750,15 +832,17 @@ const RadarChartExample = ({data}) => {
   };
 
   return (
-    <div className="w-7/12 flex justify-center flex-col items-center">
+    <div className="w-7/12 flex justify-center flex-col items-center mt-10">
       <h2 className="text-xl font-bold">Cost Efficiency and CO2 Emissions Ratio</h2>
-      <Radar data={dataRadar} options={options} />
+      <Radar data={dataRadar} options={options} ref={polarChartRef}/>
     </div>
   );
-};
+}
+)
 
 
-const QuotaChart = () => {
+//const PieChartCO2 = forwardRef(({ data }, doughnutChartRef) => {
+const QuotaChart = forwardRef(({props},quotaChartRef) => {
   const dates = Dates; 
   const quota = Quota.map(q => parseFloat(q));
 
@@ -790,76 +874,24 @@ const QuotaChart = () => {
         beginAtZero: false
       }
     },
-    maintainAspectRatio: false,
+    maintainAspectRatio: true,
     plugins: {
-      legend: {
+      title: {
         display: true,
+        text: 'EU trading emissions quotas ',
+      },
+      legend: {
+        display: false,
         position: 'top'
       }
     }
   };
 
   return (
-    <div style={{ height: '300px', width: '100%' }}>
-      <Line data={data} options={options} />
-    </div>
+      <Line data={data} options={options} ref={quotaChartRef}/>
   );
-};
-
-
-
-/*
-const QuotaChart = () => {
-  const data = {
-    labels: Dates,
-    datasets: [
-      {
-        label: 'Climate Quota',
-        data: Quota.map(q => parseFloat(q)), // Ensure numbers are parsed correctly
-        borderColor: 'rgb(75, 192, 192)',
-        backgroundColor: 'rgba(75, 192, 192, 0.5)',
-      }
-    ]
-  };
-
-  const options = {
-    scales: {
-      x: {
-        type: 'time',
-        time: {
-          unit: 'day',
-          tooltipFormat: 'yyyy-MM-dd'
-        },
-        title: {
-          display: true,
-          text: 'Date'
-        }
-      },
-      y: {
-        beginAtZero: false,
-        title: {
-          display: true,
-          text: 'Quota'
-        }
-      }
-    },
-    plugins: {
-      legend: {
-        display: true,
-        position: 'top'
-      }
-    },
-    responsive: true,
-    maintainAspectRatio: false
-  };
-
-  return (
-    <div style={{ height: '300px', width: '100%' }}>
-      <Line data={data} options={options} />
-    </div>
-  );
-};
-*/
+}
+)
 
 
 
