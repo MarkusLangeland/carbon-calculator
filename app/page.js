@@ -10,6 +10,10 @@ import { Radar } from 'react-chartjs-2';
 import {Dates, Quota} from '@/lib/chartdata.js'
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';  
+import moment from 'moment';
+import 'chartjs-adapter-moment';
+
+import { IoLeaf } from "react-icons/io5";
 
 ChartJS.register(
   CategoryScale,
@@ -34,7 +38,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button";
-
+import { Separator } from "@/components/ui/separator"
 
 
 import { TreeAnimation } from "@/components/treeAnimation"
@@ -220,6 +224,63 @@ const addNewTable = (data, pdf, startY) => {
   return startY;
 }
 
+/*
+  <div className="border md:w-4/12 w-10/12 rounded-md p-8">
+      <h1>Carbon quote Calculator</h1>
+            <Input
+              type="number"
+              name="co2Amount"
+              value={totalCO2EUquota}
+              defaultValue={totalCO2EUquota}
+              onChange={e => setTotalCO2EUquota(Number(e.target.value))}
+              placeholder={`Enter total CO2 (kg) or use default: ${totalCO2EUquota.toFixed(2)} kg`}
+              className="input mb-4"
+            />
+
+            <p>Total CO2: ${totalCO2EUquota.toFixed(2)} kg</p>
+            <p>EU Quota Cost per tonne: €${lastQuotaValue.toFixed(2)}</p>
+            <p>Total Cost: €${calculateCarbonCosts(totalCO2EUquota).toFixed(2)}</p>
+        <div id="calculationResults"></div>  
+  </div>
+</div>
+*/ 
+
+const prepareDataForEUTable = (totalCO2EUquota, lastQuotaValue) => {
+  const co2Price = parseFloat(lastQuotaValue);
+  const totalCost = calculateCarbonCosts(totalCO2EUquota);
+
+  return [
+    [totalCO2EUquota.toFixed(2) + " kg", " kr " + (co2Price).toFixed(2), " kr " + (totalCost).toFixed(2)]
+  ];
+};
+
+const addNewTableEU = (totalCO2EUquota, lastQuotaValue, calculateCarbonCosts, pdf, startY) => {
+  const headers = [["Total CO2", "EU Quota Cost Per Tonne", "Total Cost EU Quota"]];
+  const body = prepareDataForEUTable(totalCO2EUquota, lastQuotaValue, calculateCarbonCost);
+
+  pdf.autoTable({
+    head: headers,
+    body: body,
+    startY: startY,
+    styles: { font: "Times-Roman", fontSize: 10 },
+    theme: 'grid',
+    headStyles: { fillColor: [221, 222, 226], textColor: [78, 53, 73], fontStyle: 'bold' },
+    columnStyles: {
+      0: { cellWidth: 40 },
+      1: { cellWidth: 40 },
+      2: { cellWidth: 40 }
+    },
+    margin: {left: 42.5, right: 20},
+    didDrawPage: function (data) {
+      startY = data.cursor.y;
+    }
+  });
+
+  // Adjust startY for any subsequent content
+  startY += 20;
+  return startY;
+}
+
 
 
 const downloadPDF = () => {
@@ -268,9 +329,9 @@ const downloadPDF = () => {
     }
   };
 
-  //yPosition = addTable(data, pdf, yPosition + 10);
   yPosition = addNewTable(data, pdf, yPosition + 10); 
-
+  yPosition = addNewTableEU(totalCO2EUquota, lastQuotaValue, calculateCarbonCosts, pdf, yPosition);
+  
   addChartToPDF(doughnutChartRef, 100, 100, 'Pie Chart');
   addChartToPDF(analysisChartRef, 180, 100, 'Cost and CO2 Analysis Chart');
   addChartToPDF(quotaChartRef, 180, 90, 'Quota Chart');
@@ -280,41 +341,32 @@ const downloadPDF = () => {
   pdf.save('combined-report.pdf');
 };
 
-
-/*
-  const downloadPDF = () => {
-    if (doughnutChartRef.current) {
-      // Here, we need to directly access the canvas as the instance structure might vary based on react-chartjs-2 version
-      const base64Image = doughnutChartRef.current.toBase64Image('image/jpeg', 1);
-
-      const pdf = new jsPDF('landscape');
-      pdf.addImage(base64Image, 'JPEG', 10, 10, 100, 100);
-      pdf.save('download.pdf');
-    } else {
-      console.error('Chart is not yet rendered.');
-    }
-  };
-  */
-
-
-
   // Code for 'Carbon quote Calculator'
   const calculateCarbonCost = (co2Emissions) => {
     const lastQuotaValue = parseFloat(Quota[Quota.length - 1]);
     return co2Emissions * lastQuotaValue;
   };
 
-  const handleCarbonCalculation = (event) => {
-    event.preventDefault();
-    const co2Emissions = parseFloat(event.target.elements.co2Amount.value);
-    const totalCost = calculateCarbonCost(co2Emissions);
-    const lastQuotaValue = parseFloat(Quota[Quota.length - 1]);
-    const resultsDiv = document.getElementById('calculationResults');
-    resultsDiv.innerHTML = `
-      <p>Total cost based on last CO2 price: ${totalCost.toFixed(2)} euros</p>
-      <p>Used quota: ${lastQuotaValue.toFixed(2)}/kg CO2</p>
-    `;
-    //alert(`Total cost based on last CO2 price: $${totalCost.toFixed(2)}`);
+
+
+
+
+  const lastQuotaValue = 71.55; // Placeholder for the last EU quota value in euros/tonne
+  
+  const InitialTotalCO2EUquota = initialMaterials.reduce((acc, material) => {
+    return acc + (material.quantity * material.emissionsCO2) + (material.quantityGreen * material.emissionsCO2Green);
+  }, 0);
+  const [totalCO2EUquota, setTotalCO2EUquota] = useState(InitialTotalCO2EUquota)
+  useEffect(() => {
+    const newTotalCO2EUquota = data.reduce((acc, material) => {
+      return acc + (material.quantity * material.emissionsCO2) + (material.quantityGreen * material.emissionsCO2Green);
+    }, 0);
+    setTotalCO2EUquota(newTotalCO2EUquota)
+  }, [data])
+
+
+  const calculateCarbonCosts = (co2Amount) => {
+    return co2Amount * (lastQuotaValue / 1000); 
   };
 
   
@@ -333,19 +385,6 @@ const downloadPDF = () => {
     }
   }
 
-  
-  // const handleFileChange = (event) => {
-  //   const file = event.target.files[0];
-  //   if (file) {
-  //     Papa.parse(file, {
-  //       complete: (results) => {
-  //         setData(results.data);
-  //       },
-  //       header: true,
-  //       skipEmptyLines: true
-  //     });
-  //   }
-  // };
     
   const handleButtonClick = () => {
     fileInputRef.current.click();
@@ -385,9 +424,6 @@ const parseCsv = (csvData) => {
       };
       result.push(entry);
   }
-  
-  // Now set the state with this new data
-  console.log(result)
   setData(result);
 };
 
@@ -397,6 +433,80 @@ const parseCsv = (csvData) => {
     }
   }
 
+  function calculateCarbonCreditSavings() {
+    let carbonCreditSavings = [];
+    data.forEach(ele => {
+      let materialCostDifference = (ele.greenPrice - ele.price) * ele.quantity; // Cost associated with turning all regular materials into green materials
+      let emissionsReduction = (ele.emissionsCO2 - ele.emissionsCO2Green) * ele.quantity; // Amount of CO2 saved by making the switch
+      let carbonCreditCostDifference = emissionsReduction * lastQuotaValue / 1000;  
+      let totalSavings = -(materialCostDifference + (carbonCreditCostDifference * 11.74)); 
+  
+      carbonCreditSavings.push({
+        name: ele.name,
+        savings: totalSavings  
+      });
+    });
+    // console.log("Length", carbonCreditSavings.forEach(c => {
+    //   console.log(c)
+      
+    //   if(Number(c) > 0) {
+    //     console.log("yoooo")
+    //   }
+    // }))
+    return carbonCreditSavings;
+  }
+  
+
+/*
+function calculateCarbonCreditSavings() {
+  let carbonCreditSavings = []
+  data.forEach(ele => {
+    carbonCreditSavings.push({name: ele.name ,savings: (ele.price * ele.quantity) - (ele.greenPrice * ele.quantity) - Math.floor((ele.emissionsCO2 - ele.emissionsCO2Green) * lastQuotaValue * 11.74 * 1000)}) //11.74 NOK per EURO
+  })
+  return carbonCreditSavings
+}
+*/
+
+
+function MakeGreen(materialName) {
+  const newData = data.map(material => {
+    if (material.name === materialName) {
+        return {
+            ...material,
+            quantityGreen: material.quantityGreen + material.quantity,
+            quantity: 0
+        };
+    }
+    return material;
+});
+  setData(newData);
+}
+
+
+const calculateRatios = (data) => {
+  return data.map(material => {
+    const regularRatio = material.quantity > 0 ? ( material.price / material.emissionsCO2).toFixed(4) : 0;
+    const greenRatio = material.quantityGreen > 0 ? ( material.greenPrice / material.emissionsCO2Green).toFixed(4) : 0;
+    return {
+      name: material.name,
+      regularRatio,
+      greenRatio
+    };
+  });
+};
+
+function GetRatioRanking() {
+  const ratio = calculateRatios(data)
+
+  const sortedRegular = [...ratio].sort((a, b) => b.regularRatio - a.regularRatio);
+  const sortedGreen = [...ratio].sort((a, b) => b.greenRatio - a.greenRatio);
+  return {sortedRegular, sortedGreen}
+}
+
+const { sortedRegular, sortedGreen } = GetRatioRanking(data);
+
+const savings = calculateCarbonCreditSavings();
+const hasPositiveSavings = savings.some(e => e.savings > 0);
   
   return (
     <main className="">
@@ -404,22 +514,31 @@ const parseCsv = (csvData) => {
         <h1 className=" font-bold">Carbon calculator</h1>
         <div className="flex gap-4">
 
-        <Button variant="secondary" onClick={handleButtonClick}>
-                Upload CSV <FaFileUpload size={16} className="ml-2"/>
-            </Button>
-            <input
-                ref={fileInputRef}
-                id="file-upload"
-                type="file"
-                onChange={handleFileChange}
-                accept=".csv"
-                style={{ display: 'none' }}
-            />
-      
-          <Button variant="secondary" onClick={downloadPDF}>Export PDF <FaFileExport  size={16} className="ml-2"/></Button>
-          <Button variant="destructive" onClick={() => {
-            setHistory(prevHistory => [...prevHistory, initialMaterials])
-            setData(initialMaterials)}}>Reset <MdDelete size={21} className="ml-2"/></Button>
+        <Button variant="secondary" onClick={handleButtonClick} className="flex items-center justify-center gap-2">
+    <span className="hidden md:flex">Upload CSV</span> 
+    <FaFileUpload size={16} />
+    </Button>
+    <input
+        ref={fileInputRef}
+        id="file-upload"
+        type="file"
+        onChange={handleFileChange}
+        accept=".csv"
+        style={{ display: 'none' }}
+    />
+
+    <Button variant="secondary" onClick={downloadPDF} className="flex items-center justify-center gap-2">
+        <span className="hidden md:flex">Export PDF</span> 
+        <FaFileExport size={16} />
+    </Button>
+
+    <Button variant="destructive" className="flex items-center justify-center gap-2" onClick={() => {
+        setHistory(prevHistory => [...prevHistory, initialMaterials])
+        setData(initialMaterials)}}>
+        <span className="hidden md:flex">Reset</span> 
+        <MdDelete size={21} />
+    </Button>
+
 
         </div>
       </div>
@@ -432,8 +551,8 @@ const parseCsv = (csvData) => {
             <TableHead className="w-[100px]">Materials</TableHead>
             <TableHead>Quantity (kg)</TableHead>
             <TableHead>Quantity green (kg)</TableHead>
-            <TableHead>CO2 emissions (kg)</TableHead>
-            <TableHead>CO2 emissions green (kg)</TableHead>
+            <TableHead>CO<sub>2</sub> emissions (kg)</TableHead>
+            <TableHead>CO<sub>2</sub> emissions green (kg)</TableHead>
             <TableHead>Price (Kr/kg)</TableHead>
             <TableHead>Green Price (Kr/kg)</TableHead>
           </TableRow>
@@ -457,38 +576,88 @@ const parseCsv = (csvData) => {
       </div>
     </div>
 
-    <div className="flex flex-col md:flex-row justify-center items-center w-full gap-10 mt-16">
+    <h2 className="text-xl font-bold text-center mt-16 underline mb-4">Overview</h2>
+
+    <div className="flex flex-col md:flex-row justify-center items-center w-full gap-10">
       <AreaChartTwoAxis history={history} ref={analysisChartRef}/>
       <PieChartCO2 data={data} ref={doughnutChartRef}/>
     </div>
 
-    <TreeAnimation treesNeeded={treesNeeded} windowWidth={windowWidth} />
+    <TreeAnimation data={data} treesNeeded={treesNeeded} windowWidth={windowWidth} />
 
-    <h2 className='text-center text-2xl font-bold mt-16'>EU Carbon credits</h2>
+    <h2 className='text-center text-2xl font-bold mt-16 underline'>EU Carbon credits</h2>
 
 <div className="flex flex-col md:flex-row justify-center items-center w-full gap-10 mt-4">
-    <div className="flex md:w-6/12 w-10/12  flex-col justify-center items-center">
+    <div className="flex md:w-6/12 w-10/12  flex-col justify-center items-center aspect-[2/1]">
       <QuotaChart ref={quotaChartRef}/>
     </div>
 
-  <div className="border md:w-4/12 w-10/12 rounded-md p-8">
-      <h1>Carbon quote Calculator</h1>
-      <form onSubmit={handleCarbonCalculation}>
+  <div className="border md:w-4/12 w-10/12 rounded-md p-8 shadow-md border-gray-200">
+      <h1 className="text-md mb-2 font-semibold text-lg">Carbon credits calculator</h1>
             <Input
               type="number"
               name="co2Amount"
-              placeholder="Enter total CO2 (kg)"
+              value={totalCO2EUquota} //was tofixed(2)
+              defaultValue={totalCO2EUquota} //was tofixed(2)
+              onChange={e => setTotalCO2EUquota(Number(e.target.value))}
+              placeholder={`Enter total CO2 (kg) or use default: ${totalCO2EUquota.toFixed(2)} kg`}
               className="input mb-4"
             />
-            <Button type="submit" className="button">Calculate Cost</Button>
-          </form>    
-          <div id="calculationResults"></div>  
+
+            <p><span className="font-semibold">Total CO2:</span> {totalCO2EUquota.toFixed(2)} kg</p>
+            <p><span className="font-semibold">EU Quota Cost per tonne:</span> {(11.74*lastQuotaValue).toFixed(2)} kr</p>
+            <p><span className="font-semibold">Total Cost:</span> {(11.74*calculateCarbonCosts(totalCO2EUquota)).toFixed(2)} kr</p>
+
+            
+            {calculateCarbonCreditSavings().filter(value => value.savings > 0).length > 0 ? <div><Separator className="my-4" /><h1 className="mt-4">By switching to the green materials option you can save:</h1></div>: null}
+            {calculateCarbonCreditSavings().map(e => {
+              if (e.savings > 0) {
+                return (
+                  <div className="flex gap-2 items-center justify-between mt-2">
+                    <p><span className="font-semibold">{e.name}</span>: {Math.round(e.savings)} kr</p>
+                    <Button className="bg-green-100 py-1 hover:bg-green-300 text-black" onClick={() => MakeGreen(e.name)}>Make Green <IoLeaf /></Button>
+                  </div>
+                )
+              }
+            })}
+        <div id="calculationResults"></div>  
   </div>
 </div>
 
-<div className="flex justify-center mt-12 mb-12">
+<h2 className="text-xl font-bold text-center mt-16 underline ">Green Investment Efficiency Metric</h2>
+    
+    <div className="flex flex-col md:flex-row justify-center items-center w-full gap-10 mb-10">
       <RadarChartExample data={data} ref={polarChartRef}/>
-</div>
+      <div className="border md:w-4/12 w-10/12 rounded-md h-full shadow-md p-5 py-8">
+        
+        <h1 className="text-center font-semibold text-lg">Ranking of Cost/CO2</h1>
+
+    <div className="flex justify-around mt-2">
+      <div>
+        <h2 className="text-left font-semibold">Regular Material Efficiency</h2>
+        <ul>
+          {sortedRegular.map((material, index) => (
+            <li key={index}>{index+1}. {material.name}: {Number(material.regularRatio).toFixed(1)}</li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <h2 className="text-left font-semibold">Green Material Efficiency</h2>
+        <ul>
+          {sortedGreen.map((material, index) => (
+            <li key={index}>{index+1}. {material.name}: {Number(material.greenRatio).toFixed(1)}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+        <Separator className="my-4"/>
+    <p className="italic">This chart shows an overview of cost to CO2 emissions ratio. If a material shows a high ratio in this chart
+        it means that you pay more money, but your CO2 emissions are low compared to this price.
+        </p>
+            
+      
+      </div>
+    </div>
 
     </main>
   );
@@ -623,7 +792,7 @@ const options = {
 
   
   return (<>
-  {totalCO2Data.every(element => element === 0) ? <div className="rounded-full bg-slate-100 md:w-3/12 w-7/12 aspect-square flex justify-center items-center"><p>No Data</p></div> :
+  {totalCO2Data.every(element => element === 0) ? <div className="rounded-full bg-slate-100 md:w-3/12 w-7/12 aspect-square flex justify-center items-center shadow-md"><p>No Data</p></div> :
       <div className="aspect-square md:w-3/12 w-7/12">
         <Doughnut data={chartData} options={options} ref={doughnutChartRef} />
     </div>}
@@ -632,7 +801,6 @@ const options = {
 
 
 const AreaChartTwoAxis = forwardRef(({ history }, analysisChartRef) => {
-  // console.log(history)
   let tempArr = [...history]
   let dataCost = []
   let dataCO2 = []
@@ -707,7 +875,7 @@ const AreaChartTwoAxis = forwardRef(({ history }, analysisChartRef) => {
   <>
   {history.length === 1 ? 
   // <div className="aspect-[2/1] md:w-6/12 w-10/12 bg-slate-100 text-center rounded-r-xl">No history data</div>:
-  <div class="aspect-[2/1] md:w-6/12 w-10/12 bg-slate-100 text-center rounded-r-xl flex items-center justify-center">No history data</div>:
+  <div class="aspect-[2/1] md:w-6/12 w-10/12 bg-slate-100 text-center rounded-r-xl flex items-center justify-center shadow-md">No history data</div>:
 
   <div className="aspect-[2/1] md:w-6/12 w-10/12"><Line data={data} options={options} ref={analysisChartRef}/></div>
   }
@@ -715,54 +883,6 @@ const AreaChartTwoAxis = forwardRef(({ history }, analysisChartRef) => {
   </>)
 }
 )
-
-
-// const RadarChartExample = ({data}) => {
-//   // Data for the chart
-//   const labels = data.map(material => material.name);
-
-//   const dataRadar = {
-//     labels: ['Eating', 'Drinking', 'Sleeping', 'Designing', 'Coding', 'Cycling', 'Running'],
-//     datasets: [
-//       {
-//         label: 'Person A',
-//         data: [65, 59, 90, 81, 56, 55, 40],
-//         fill: true,
-//         backgroundColor: 'rgba(255, 99, 132, 0.2)',
-//         borderColor: 'rgb(255, 99, 132)',
-//         pointBackgroundColor: 'rgb(255, 99, 132)',
-//         pointBorderColor: '#fff',
-//         pointHoverBackgroundColor: '#fff',
-//         pointHoverBorderColor: 'rgb(255, 99, 132)'
-//       }
-//     ]
-//   };
-
-//   // Configuration options
-//   const options = {
-//     elements: {
-//       line: {
-//         borderWidth: 3
-//       }
-//     },
-//     scales: {
-//       r: {
-//         angleLines: {
-//           display: false
-//         },
-//         suggestedMin: 0,
-//         suggestedMax: 100
-//       }
-//     }
-//   };
-
-//   return (
-//     <div>
-//       <h2>My Radar Chart</h2>
-//       <Radar data={dataRadar} options={options} />
-//     </div>
-//   );
-// };
 
 const RadarChartExample = forwardRef(({data}, polarChartRef) => {
 
@@ -815,6 +935,12 @@ const RadarChartExample = forwardRef(({data}, polarChartRef) => {
 
 
   const options = {
+    plugins: {
+      title: {
+        display: true,
+        text: 'Cost Efficiency and CO2 Emissions Ratio'
+      }
+    },
     elements: {
       line: {
         borderWidth: 3
@@ -830,10 +956,10 @@ const RadarChartExample = forwardRef(({data}, polarChartRef) => {
       }
     }
   };
+  
 
   return (
-    <div className="w-7/12 flex justify-center flex-col items-center mt-10">
-      <h2 className="text-xl font-bold">Cost Efficiency and CO2 Emissions Ratio</h2>
+    <div className="md:w-6/12 w-10/12 flex justify-center flex-col items-center mt-10 aspect-square">
       <Radar data={dataRadar} options={options} ref={polarChartRef}/>
     </div>
   );
@@ -842,7 +968,96 @@ const RadarChartExample = forwardRef(({data}, polarChartRef) => {
 
 
 //const PieChartCO2 = forwardRef(({ data }, doughnutChartRef) => {
-const QuotaChart = forwardRef(({props},quotaChartRef) => {
+// const QuotaChart = forwardRef(({props},quotaChartRef) => {
+//   const dates = Dates; 
+//   const quota = Quota.map(q => parseFloat(q));
+
+//   const data = {
+//     labels: dates,
+//     datasets: [
+//       {
+//         label: 'Climate Quota',
+//         data: quota,
+//         fill: false,
+//         borderColor: 'rgb(75, 192, 192)',
+//         tension: 0.1,
+//         pointRadius: 0, 
+//         borderWidth: 2 
+//       }
+//     ]
+//   };
+
+//   // const options = {
+//   //   scales: {
+//   //     x: {
+//   //       type: 'category', 
+//   //       ticks: {
+//   //         autoSkip: true,
+//   //         maxTicksLimit: 20 // Adjust based on your preference
+//   //       }
+//   //     },
+//   //     y: {
+//   //       beginAtZero: false
+//   //     }
+//   //   },
+//   //   maintainAspectRatio: true,
+//   //   plugins: {
+//   //     title: {
+//   //       display: true,
+//   //       text: 'EU trading emissions quotas ',
+//   //     },
+//   //     legend: {
+//   //       display: false,
+//   //       position: 'top'
+//   //     }
+//   //   }
+//   // };
+
+//   const options = {
+//     scales: {
+//       x: {
+//         type: 'time',
+//         time: {
+//           unit: 'day',
+//           tooltipFormat: 'll',
+//           displayFormats: {
+//             day: 'MMM D'
+//           }
+//         },
+//         ticks: {
+//           autoSkip: true,
+//           maxTicksLimit: 10, // Adjust based on your preference
+//           callback: function(val, index) {
+//             // This function formats each tick as needed
+//             return moment(val).format('MMM D');
+//           }
+//         }
+//       },
+//       y: {
+//         beginAtZero: false
+//       }
+//     },
+//     maintainAspectRatio: true,
+//     plugins: {
+//       title: {
+//         display: true,
+//         text: 'EU Trading Emissions Quotas',
+//       },
+//       legend: {
+//         display: false,
+//         position: 'top'
+//       }
+//     }
+//   };
+  
+
+//   return (
+//       <Line data={data} options={options} ref={quotaChartRef}/>
+//   );
+// }
+// )
+
+const QuotaChart = forwardRef(({props}, quotaChartRef) => {
   const dates = Dates; 
   const quota = Quota.map(q => parseFloat(q));
 
@@ -855,8 +1070,8 @@ const QuotaChart = forwardRef(({props},quotaChartRef) => {
         fill: false,
         borderColor: 'rgb(75, 192, 192)',
         tension: 0.1,
-        pointRadius: 0, 
-        borderWidth: 2 
+        pointRadius: 0,
+        borderWidth: 2
       }
     ]
   };
@@ -864,10 +1079,17 @@ const QuotaChart = forwardRef(({props},quotaChartRef) => {
   const options = {
     scales: {
       x: {
-        type: 'category', 
+        type: 'time',
+        time: {
+          unit: 'day',
+          tooltipFormat: 'll',
+          displayFormats: {
+            day: 'MMM D'
+          }
+        },
         ticks: {
           autoSkip: true,
-          maxTicksLimit: 20 // Adjust based on your preference
+          maxTicksLimit: 10, // Adjust based on your preference
         }
       },
       y: {
@@ -878,7 +1100,7 @@ const QuotaChart = forwardRef(({props},quotaChartRef) => {
     plugins: {
       title: {
         display: true,
-        text: 'EU trading emissions quotas ',
+        text: 'EU Trading Emissions Quotas',
       },
       legend: {
         display: false,
@@ -890,9 +1112,7 @@ const QuotaChart = forwardRef(({props},quotaChartRef) => {
   return (
       <Line data={data} options={options} ref={quotaChartRef}/>
   );
-}
-)
-
+});
 
 
 

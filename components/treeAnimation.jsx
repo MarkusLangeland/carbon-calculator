@@ -1,9 +1,18 @@
 // "use client"
 import { motion } from 'framer-motion';
 
-const TreeAnimation = ({ treesNeeded, windowWidth }) => {
+const TreeAnimation = ({ data, windowWidth }) => {
 
-  
+  const totalCO2 = data.reduce((total, item) => {
+    return total + Math.abs((item.quantityGreen*item.emissionsCO2 - item.quantityGreen * item.emissionsCO2Green));
+  }, 0);
+
+  console.log(totalCO2)
+
+  const CO2CapturedPerTree = 25 //kg
+  const treesNeeded = totalCO2 / CO2CapturedPerTree
+
+
     const treeVariants = {
       hidden: { scale: 0 },
       visible: i => ({
@@ -36,16 +45,13 @@ const TreeAnimation = ({ treesNeeded, windowWidth }) => {
     return (
       <div className=" relative w-full h-[300px] overflow-hidden flex justify-center gap-10">
         <div className="flex justify-center p-20 text-center">
-          <h2 className="text-xl font-bold">You saved {treesNeeded/10} tones CO2 by choosing the green option. This is equivalent to {treesNeeded} trees planted</h2>
+          <h2 className="text-xl">You saved <span className="underline font-semibold">{totalCO2.toFixed(2)}</span> kg CO<sub>2</sub> by choosing the green option. This is equivalent to the CO<sub>2</sub> capture and storage of <span className="underline font-semibold">{treesNeeded.toFixed(2)}</span> trees per year.</h2>
+
         </div>
-        {treesArray.map((tree, index) => (
+        {treesArray.length ? treesArray.map((tree, index) => (
           <motion.img
             key={tree.id}
-            // src="https://atlas-content-cdn.pixelsquid.com/stock-images/low-poly-tree-QJ46DNA-600.jpg"
             src= {index % 3 == 0 ? "https://atlas-content-cdn.pixelsquid.com/stock-images/low-poly-tree-z01Dn42-600.jpg" : "https://atlas-content-cdn.pixelsquid.com/stock-images/low-poly-tree-QJ46DNA-600.jpg"}
-            
-            
-            // https://atlas-content-cdn.pixelsquid.com/stock-images/low-poly-pine-tree-G9QZGk6-600.jpg
             alt="Tree"
             variants={treeVariants}
             initial="hidden"
@@ -57,7 +63,14 @@ const TreeAnimation = ({ treesNeeded, windowWidth }) => {
               top: `${tree.y}%`,
             }}
           />
-        ))}
+        )) : <div             
+        className="absolute mix-blend-darken text-center h-auto"
+        style={{
+          left: `${50}%`,
+          top: `${70}%`,
+        }}>No data</div>
+      
+      }
       </div>
     );
   };
