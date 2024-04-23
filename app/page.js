@@ -373,7 +373,7 @@ const downloadPDF = () => {
   const fileInputRef = useRef(null);
   
   function handleInputChange(materialName, field, newValue) {
-    if (!newValue || newValue.match(/^\d*\.?\d*$/)) {
+    if (!newValue || newValue.match(/^-?\d*\.?\d*$/)) {
       setData(currentData =>
         currentData.map(material => {
           if (material.name === materialName) {
@@ -384,7 +384,7 @@ const downloadPDF = () => {
       );
     }
   }
-
+  
     
   const handleButtonClick = () => {
     fileInputRef.current.click();
@@ -407,25 +407,38 @@ const parseCsv = (csvData) => {
   const lines = csvData.split('\n').map(line => line.trim()).filter(line => line);
   const result = [];
   
-  // Assuming the first line contains headers
-  const headers = lines[0].split('\t').map(header => header.trim());
+  // Check the delimiter used in your CSV and ensure consistency
+  const delimiter = ';'; // Use '\t' if your CSV is tab-delimited
+  const headers = lines[0].split(delimiter).map(header => header.trim());
 
-  // Start from the second line to skip headers
   for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(';');
-      const entry = {
-          name: values[0], // Assuming the first column is the material name
-          quantity: parseFloat(values[1]),
-          quantityGreen: parseFloat(values[2]),
-          emissionsCO2: parseFloat(values[3]),
-          emissionsCO2Green: parseFloat(values[4]),
-          price: parseFloat(values[5]),
-          greenPrice: parseFloat(values[6])
-      };
-      result.push(entry);
+      const values = lines[i].split(delimiter);
+      if (values.length === headers.length) { // Ensure each row has the correct number of columns
+          const entry = {
+              name: values[0], // Assuming the first column is the material name
+              quantity: parseFloat(values[1]),
+              quantityGreen: parseFloat(values[2]),
+              emissionsCO2: parseFloat(values[3]),
+              emissionsCO2Green: parseFloat(values[4]),
+              price: parseFloat(values[5]),
+              greenPrice: parseFloat(values[6])
+          };
+
+          // Check for NaN values and handle them appropriately
+          Object.keys(entry).forEach(key => {
+              if (isNaN(entry[key]) && typeof entry[key] === 'number') {
+                  entry[key] = 0; // Set defaults or handle errors
+              }
+          });
+
+          result.push(entry);
+      } else {
+          console.error('Data mismatch in row ' + i);
+      }
   }
   setData(result);
 };
+
 
   function updateHistory() {
     if(JSON.stringify(data) !== JSON.stringify(history[history.length - 1])) {
@@ -597,7 +610,7 @@ const hasPositiveSavings = savings.some(e => e.savings > 0);
             <Input
               type="number"
               name="co2Amount"
-              value={totalCO2EUquota} //was tofixed(2)
+              value={Number(totalCO2EUquota).toFixed(2)} //was tofixed(2)
               defaultValue={totalCO2EUquota} //was tofixed(2)
               onChange={e => setTotalCO2EUquota(Number(e.target.value))}
               placeholder={`Enter total CO2 (kg) or use default: ${totalCO2EUquota.toFixed(2)} kg`}
@@ -670,18 +683,36 @@ const hasPositiveSavings = savings.some(e => e.savings > 0);
 
 
 const PieChartCO2 = forwardRef(({ data }, doughnutChartRef) => {
-  const labels = data.map(material => material.name);
-  const totalCO2Data = data.map(material => material.quantity * material.emissionsCO2 + material.quantityGreen * material.emissionsCO2Green);
-  const regularCO2Data = data.map(material => material.quantity * material.emissionsCO2);
-  const greenCO2Data = data.map(material => material.quantityGreen * material.emissionsCO2Green);
+  const labels = data.map(material => 
+    // if(material.name !== "Timber") {
+       {
+        if(material.name === "Timber") return 0
+        return material.name}
+    // }
+  );
+  const totalCO2Data = data.map(material => 
+    {if(material.name === "Timber") return 0
+     return material.quantity * material.emissionsCO2 + material.quantityGreen * material.emissionsCO2Green
+    }
+  );
+  const regularCO2Data = data.map(material => 
+    {if(material.name === "Timber") return 0
+        return material.quantity * material.emissionsCO2
+    }
+    );
+  const greenCO2Data = data.map(material =>
+    {if(material.name === "Timber") return 0
+      return material.quantityGreen * material.emissionsCO2Green
+    }
+    );
   
   const outerColors = [
     'rgba(255, 99, 132, 0.7)',   // Red
     'rgba(54, 162, 235, 0.7)',   // Blue
     'rgba(255, 206, 86, 0.7)',   // Yellow
     'rgba(75, 192, 192, 0.7)',   // Green
+    'rgba(255, 159, 64, 0.7)',    // Orange
     'rgba(153, 102, 255, 0.7)',  // Purple
-    'rgba(255, 159, 64, 0.7)'    // Orange
   ];
 
   const innerColors = [
