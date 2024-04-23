@@ -373,17 +373,21 @@ const downloadPDF = () => {
   const fileInputRef = useRef(null);
   
   function handleInputChange(materialName, field, newValue) {
-    if (!newValue || newValue.match(/^-?\d*\.?\d*$/)) {
+    // Updated regex to allow numbers that end with a decimal point
+    if (!newValue || newValue.match(/^-?\d*\.?\d*$|^-?\d+\.$/)) {
       setData(currentData =>
         currentData.map(material => {
           if (material.name === materialName) {
-            return { ...material, [field]: Number(newValue) };
+            // Temporarily store incomplete numbers as strings to preserve input
+            const processedValue = newValue.match(/\.$/) ? newValue : Number(newValue);
+            return { ...material, [field]: processedValue };
           }
           return material;
         })
       );
     }
   }
+  
   
     
   const handleButtonClick = () => {
@@ -437,6 +441,8 @@ const parseCsv = (csvData) => {
       }
   }
   setData(result);
+  setHistory(prevHistory => [...prevHistory, result])
+
 };
 
 
