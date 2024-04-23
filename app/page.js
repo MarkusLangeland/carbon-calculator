@@ -613,7 +613,7 @@ const hasPositiveSavings = savings.some(e => e.savings > 0);
             {calculateCarbonCreditSavings().map(e => {
               if (e.savings > 0) {
                 return (
-                  <div className="flex gap-2 items-center justify-between mt-2">
+                  <div key={e.name} className="flex gap-2 items-center justify-between mt-2">
                     <p><span className="font-semibold">{e.name}</span>: {Math.round(e.savings)} kr</p>
                     <Button className="bg-green-100 py-1 hover:bg-green-300 text-black" onClick={() => MakeGreen(e.name)}>Make Green <IoLeaf /></Button>
                   </div>
@@ -798,6 +798,9 @@ const options = {
     </div>}
   </>);
 });
+// Set displayName for the component
+PieChartCO2.displayName = 'PieChartCO2';
+
 
 
 const AreaChartTwoAxis = forwardRef(({ history }, analysisChartRef) => {
@@ -884,6 +887,10 @@ const AreaChartTwoAxis = forwardRef(({ history }, analysisChartRef) => {
 }
 )
 
+
+// Set displayName for the component
+AreaChartTwoAxis.displayName = 'AreaChartTwoAxis';
+
 const RadarChartExample = forwardRef(({data}, polarChartRef) => {
 
   const calculateRatios = (data) => {
@@ -966,6 +973,9 @@ const RadarChartExample = forwardRef(({data}, polarChartRef) => {
 }
 )
 
+
+// Set displayName for the component
+RadarChartExample.displayName = 'RadarChartExample';
 
 //const PieChartCO2 = forwardRef(({ data }, doughnutChartRef) => {
 // const QuotaChart = forwardRef(({props},quotaChartRef) => {
@@ -1113,6 +1123,8 @@ const QuotaChart = forwardRef(({props}, quotaChartRef) => {
       <Line data={data} options={options} ref={quotaChartRef}/>
   );
 });
+
+QuotaChart.displayName = 'QuotaChart';
 
 
 
