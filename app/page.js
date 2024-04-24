@@ -49,12 +49,12 @@ import { FaFileExport } from "react-icons/fa6";
 
 export default function Home() {
   const initialMaterials = [
-    { name: 'Aluminum', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 250, greenPrice: 500 },
-    { name: 'Concrete', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 400, greenPrice: 800 },
-    { name: 'Plastic', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 50, greenPrice: 100 },
-    { name: 'Glass', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 120, greenPrice: 240 },
-    { name: 'Timber', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 80, greenPrice: 160 },
-    { name: 'Steel', quantityGreen: 0, quantity: 0, emissionsCO2: 2, emissionsCO2Green: 1.5, price: 300, greenPrice: 600 },
+    { name: 'Aluminum', quantityGreen: 0, quantity: 0, emissionsCO2: 4, emissionsCO2Green: 1.9, price: 47.5, greenPrice: 20.9 },
+    { name: 'Concrete', quantityGreen: 0, quantity: 0, emissionsCO2: 0.1, emissionsCO2Green: 0.05, price: 0.5, greenPrice: 1.4 },
+    { name: 'Plastic', quantityGreen: 0, quantity: 0, emissionsCO2: 7.83, emissionsCO2Green: 0.345, price: 23.5, greenPrice: 9.6 },
+    { name: 'Glass', quantityGreen: 0, quantity: 0, emissionsCO2: 0.606, emissionsCO2Green: 0.026, price: 15.5, greenPrice: 0.76 },
+    { name: 'Timber', quantityGreen: 0, quantity: 0, emissionsCO2: -1.7, emissionsCO2Green: -1.7, price: 5.8, greenPrice: 5.8 },
+    { name: 'Steel', quantityGreen: 0, quantity: 0, emissionsCO2: 2.68, emissionsCO2Green: 0.42, price: 12.4, greenPrice: 23.7 },
   ];
 
   const [data, setData] = useState(initialMaterials)
@@ -499,6 +499,8 @@ function MakeGreen(materialName) {
     return material;
 });
   setData(newData);
+  setHistory(prevHistory => [...prevHistory, newData])
+
 }
 
 
