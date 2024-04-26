@@ -691,24 +691,62 @@ const hasPositiveSavings = savings.some(e => e.savings > 0);
 
 
 const PieChartCO2 = forwardRef(({ data }, doughnutChartRef) => {
-  const labels = data.map(material => 
+  let newData = [...data]
+  function zeroOutTimber(material) {
+    if (material.name === 'Timber') {
+        return {
+            name: material.name,
+            quantityGreen: 0,
+            quantity: 0,
+            emissionsCO2: 0,
+            emissionsCO2Green: 0,
+            price: 0,
+            greenPrice: 0
+        };
+    }
+    return material;
+}
+
+function sortMaterials(materials) {
+    // First map over the array to set all Timber properties to 0
+    const modifiedMaterials = materials.map(zeroOutTimber);
+
+    return modifiedMaterials.sort((a, b) => {
+        const aBothPositive = a.quantityGreen > 0 && a.quantity > 0;
+        const bBothPositive = b.quantityGreen > 0 && b.quantity > 0;
+
+        const aEitherPositive = a.quantityGreen > 0 || a.quantity > 0;
+        const bEitherPositive = b.quantityGreen > 0 || b.quantity > 0;
+
+        if (aBothPositive && !bBothPositive) return -1;
+        if (!aBothPositive && bBothPositive) return 1;
+
+        if (aEitherPositive && !bEitherPositive) return -1;
+        if (!aEitherPositive && bEitherPositive) return 1;
+
+        return 0;
+    });
+}
+  newData = sortMaterials(newData)
+  console.log(newData)
+  const labels = newData.map(material => 
     // if(material.name !== "Timber") {
        {
-        if(material.name === "Timber") return 0
+        // if(material.name === "Timber") return 0
         return material.name}
     // }
   );
-  const totalCO2Data = data.map(material => 
+  const totalCO2Data = newData.map(material => 
     {if(material.name === "Timber") return 0
      return material.quantity * material.emissionsCO2 + material.quantityGreen * material.emissionsCO2Green
     }
   );
-  const regularCO2Data = data.map(material => 
+  const regularCO2Data = newData.map(material => 
     {if(material.name === "Timber") return 0
         return material.quantity * material.emissionsCO2
     }
     );
-  const greenCO2Data = data.map(material =>
+  const greenCO2Data = newData.map(material =>
     {if(material.name === "Timber") return 0
       return material.quantityGreen * material.emissionsCO2Green
     }
