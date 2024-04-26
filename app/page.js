@@ -757,8 +757,8 @@ function sortMaterials(materials) {
     'rgba(54, 162, 235, 0.7)',   // Blue
     'rgba(255, 206, 86, 0.7)',   // Yellow
     'rgba(75, 192, 192, 0.7)',   // Green
-    'rgba(255, 159, 64, 0.7)',    // Orange
     'rgba(153, 102, 255, 0.7)',  // Purple
+    'rgba(255, 159, 64, 0.7)',    // Orange
   ];
 
   const innerColors = [
@@ -773,7 +773,8 @@ function sortMaterials(materials) {
     'rgba(43, 129, 188, 0.7)',
     'rgba(64, 194, 255, 0.7)',
     'rgba(204, 164, 68, 0.7)',
-    'rgba(255, 247, 103, 0.7)']
+    'rgba(255, 247, 103, 0.7)',
+  ]
 
 
   const innerData = [];
