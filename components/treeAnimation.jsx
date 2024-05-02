@@ -45,7 +45,7 @@ const TreeAnimation = ({ data, windowWidth }) => {
     return (
       <div className=" relative w-full h-[300px] overflow-hidden flex justify-center gap-10">
         <div className="flex justify-center p-20 text-center">
-          <h2 className="text-xl">You saved <span className="underline font-semibold">{totalCO2.toFixed(2)}</span> kg CO<sub>2</sub> by choosing the green option. This is equivalent to the CO<sub>2</sub> capture and storage of <span className="underline font-semibold">{treesNeeded.toFixed(2)}</span> trees per year.</h2>
+          <h2 className="text-xl">You saved <span className="underline font-semibold">{Number(totalCO2.toFixed(2)).toLocaleString()}</span> kg CO<sub>2</sub> by choosing the green option. This is equivalent to the CO<sub>2</sub> capture and storage of <span className="underline font-semibold">{Number(treesNeeded.toFixed(2)).toLocaleString()}</span> trees per year.</h2>
 
         </div>
         {treesArray.length ? treesArray.map((tree, index) => (

@@ -625,9 +625,9 @@ const hasPositiveSavings = savings.some(e => e.savings > 0);
               className="input mb-4"
             />
 
-            <p><span className="font-semibold">Total CO2:</span> {totalCO2EUquota.toFixed(2)} kg</p>
-            <p><span className="font-semibold">EU Quota Cost per tonne:</span> {(11.74*lastQuotaValue).toFixed(2)} kr</p>
-            <p><span className="font-semibold">Total Cost:</span> {(11.74*calculateCarbonCosts(totalCO2EUquota)).toFixed(2)} kr</p>
+            <p><span className="font-semibold">Total CO2:</span> {Number(totalCO2EUquota.toFixed(2)).toLocaleString()} kg</p>
+            <p><span className="font-semibold">EU Quota Cost per tonne:</span> {Number((11.74*lastQuotaValue).toFixed(2)).toLocaleString()} kr</p>
+            <p><span className="font-semibold">Total Cost:</span> {Number((11.74*calculateCarbonCosts(totalCO2EUquota)).toFixed(2)).toLocaleString()} kr</p>
 
             
             {calculateCarbonCreditSavings().filter(value => value.savings > 0).length > 0 ? <div><Separator className="my-4" /><h1 className="mt-4">By switching to the green materials option you can save:</h1></div>: null}
@@ -635,7 +635,7 @@ const hasPositiveSavings = savings.some(e => e.savings > 0);
               if (e.savings > 0) {
                 return (
                   <div key={e.name} className="flex gap-2 items-center justify-between mt-2">
-                    <p><span className="font-semibold">{e.name}</span>: {Math.round(e.savings)} kr</p>
+                    <p><span className="font-semibold">{e.name}</span>: {Number(Math.round(e.savings)).toLocaleString()} kr</p>
                     <Button className="bg-green-100 py-1 hover:bg-green-300 text-black" onClick={() => MakeGreen(e.name)}>Make Green <IoLeaf /></Button>
                   </div>
                 )
