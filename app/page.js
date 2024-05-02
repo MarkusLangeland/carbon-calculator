@@ -651,11 +651,11 @@ const hasPositiveSavings = savings.some(e => e.savings > 0);
       <RadarChartExample data={data} ref={polarChartRef}/>
       <div className="border md:w-4/12 w-10/12 rounded-md h-full shadow-md p-5 py-8">
         
-        <h1 className="text-center font-semibold text-lg">Ranking of Cost/CO2</h1>
+        <h1 className="text-center font-semibold text-lg">Ranking of Ratios</h1>
 
     <div className="flex justify-around mt-2">
       <div>
-        <h2 className="text-left font-semibold">Regular Material Efficiency</h2>
+        <h2 className="text-left font-semibold">Regular Material Ratio</h2>
         <ul>
           {sortedRegular.map((material, index) => (
             <li key={index}>{index+1}. {material.name}: {Number(material.regularRatio).toFixed(1)}</li>
@@ -663,7 +663,7 @@ const hasPositiveSavings = savings.some(e => e.savings > 0);
         </ul>
       </div>
       <div>
-        <h2 className="text-left font-semibold">Green Material Efficiency</h2>
+        <h2 className="text-left font-semibold">Green Material Ratio</h2>
         <ul>
           {sortedGreen.map((material, index) => (
             <li key={index}>{index+1}. {material.name}: {Number(material.greenRatio).toFixed(1)}</li>
@@ -672,8 +672,7 @@ const hasPositiveSavings = savings.some(e => e.savings > 0);
       </div>
     </div>
         <Separator className="my-4"/>
-    <p className="italic">This chart shows an overview of cost to CO2 emissions ratio. If a material shows a high ratio in this chart
-        it means that you pay more money, but your CO2 emissions are low compared to this price.
+    <p className="italic">This chart shows the ratio of the product of cost and CO2 to one. Reducing price or CO2 emissions will therefore be represented by a higher ratio.
         </p>
             
       
@@ -973,8 +972,8 @@ const RadarChartExample = forwardRef(({data}, polarChartRef) => {
 
   const calculateRatios = (data) => {
     return data.map(material => {
-      const regularRatio = material.quantity > 0 ? ( material.price / material.emissionsCO2).toFixed(4) : 0;
-      const greenRatio = material.quantityGreen > 0 ? ( material.greenPrice / material.emissionsCO2Green).toFixed(4) : 0;
+      const regularRatio = material.quantity > 0 ? ( 1 / (material.emissionsCO2 * material.price)).toFixed(4) : 0;
+      const greenRatio = material.quantityGreen > 0 ? ( 1/ (material.emissionsCO2Green * material.greenPrice)).toFixed(4) : 0;
       return {
         name: material.name,
         regularRatio,
@@ -994,7 +993,7 @@ const RadarChartExample = forwardRef(({data}, polarChartRef) => {
     labels,
     datasets: [
       {
-        label: 'Regular Material Cost/CO2 Ratio',
+        label: 'Regular Material 1/(Cost*CO2) Ratio',
         data: regularData,
         fill: true,
         backgroundColor: 'rgba(255, 99, 132, 0.2)',
@@ -1005,7 +1004,7 @@ const RadarChartExample = forwardRef(({data}, polarChartRef) => {
         pointHoverBorderColor: 'rgb(255, 99, 132)'
       },
       {
-        label: 'Green Material Cost/CO2 Ratio',
+        label: 'Green Material 1/(Cost*CO2) Ratio',
         data: greenData,
         fill: true,
         backgroundColor: 'rgba(75, 192, 192, 0.2)',
@@ -1023,7 +1022,7 @@ const RadarChartExample = forwardRef(({data}, polarChartRef) => {
     plugins: {
       title: {
         display: true,
-        text: 'Cost Efficiency and CO2 Emissions Ratio'
+        text: 'Cost and CO2 Emissions Ratio'
       }
     },
     elements: {
